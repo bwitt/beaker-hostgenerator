@@ -9,6 +9,9 @@ on:
   schedule:
     - cron: '23 3 * * *'
   workflow_dispatch: {}
+  push:
+    branches:
+      - smoke-pkg-refresh-test
   pull_request:
     paths:
       - .github/workflows/vagrant-smoke.yml
