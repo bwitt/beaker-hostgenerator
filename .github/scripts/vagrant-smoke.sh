@@ -188,6 +188,30 @@ if [ "$os_id" != "$expected_id" ] ||
   fail "Wrong guest OS" "expected ${expected_id} ${expected_version}, the box is ${os_id:-unknown} ${os_version:-unknown}"
 fi
 
+# Refresh the package metadata. This needs working DNS, HTTPS, CA trust and
+# mirrors. apt-get update can exit 0 when a fetch fails, so check its output too.
+apt_refresh='
+  out=$(sudo apt-get -q update 2>&1)
+  status=$?
+  echo "$out"
+  [ "$status" -eq 0 ] && ! echo "$out" | grep -qE "^(E:|W: Failed to fetch)"
+'
+dnf_refresh='sudo dnf -q -y makecache --refresh'
+
+case "$platform" in
+  debian*|ubuntu*) refresh=$apt_refresh ;;
+  *)               refresh=$dnf_refresh ;;
+esac
+
+echo "::group::Refresh package metadata"
+if ! vagrant ssh -c "$refresh" > refresh.log 2>&1; then
+  cat refresh.log
+  echo "::endgroup::"
+  fail "Package metadata refresh failed" "$(error_tail refresh.log)"
+fi
+cat refresh.log
+echo "::endgroup::"
+
 os_name=$(grep -m 1 '^PRETTY_NAME=' os-release | cut -d= -f2- | tr -d '"\r') || true
 summary "✅ **${platform}** (\`${SMOKE_BOX}\`): booted ${os_name:-unknown OS}, ${actual_arch}"
 echo "${platform}: box ${SMOKE_BOX} booted"
